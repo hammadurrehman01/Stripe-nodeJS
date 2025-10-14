@@ -74,6 +74,38 @@ app.post("/create-customer", async (req, res) => {
   res.send({ customer });
 });
 
+app.post("/create-subscription-session", async (req, res) => {
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price: "price_1SI7PzJ4FRwlPxFgKXZ37Kj3",
+          quantity: 1,
+        },
+      ],
+      success_url: `http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: "http://localhost:3000/cancel",
+    });
+    res.json({ success: true, url: session.url });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/session/:id", async (req, res) => {
+  try {
+    const session = await stripe.checkout.sessions.retrieve(req.params.id, {
+      expand: ["customer", "subscription"],
+    });
+    res.send(session);
+  } catch (error) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is listening to the port ${PORT}`);
 });
@@ -101,7 +133,7 @@ app.post("/charge-customer", async (req, res) => {
 
   const paymentIntent = await stripe.paymentIntents.create({
     amount,
-    currency: 'usd',
+    currency: "usd",
     customer: customerId,
     payment_method: customer.invoice_settings.default_payment_method,
     off_session: true,
