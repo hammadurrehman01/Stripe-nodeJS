@@ -2,6 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import Stripe from "stripe";
+import bodyParser from "body-parser";
 
 dotenv.config();
 
@@ -106,10 +107,6 @@ app.get("/session/:id", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is listening to the port ${PORT}`);
-});
-
 app.post("/save-payment-method", async (req, res) => {
   const { customerId } = req.body;
   const setupIntent = await stripe.setupIntents.create({
@@ -142,3 +139,49 @@ app.post("/charge-customer", async (req, res) => {
 
   return res.send({ success: true, paymentIntent });
 });
+
+app.post(
+  "/webhook",
+  bodyParser.raw({ type: "application/json" }),
+  async (req, res) => {
+    const sig = req.headers["stripe-signature"];
+
+    console.log("sig ========>", sig)
+    console.log("req.body ========>", req.body)
+
+    let event;
+
+    try {
+      stripe.webhooks.constructEvent(
+        req.body,
+        sig,
+        process.env.STRIPE_WEBHOOK_SECRET
+      );
+
+    } catch (error) {
+      console.error("⚠️  Webhook signature verification failed:", error.message);
+      return res.status(400).send(`Webhook Error: ${error.message}`);
+    }
+
+    switch (event.type) {
+      case "checkout.session.completed":
+        console.log("✅ Checkout session completed:", event.data.object.id);
+        break;
+      case "invoice.payment_succeeded":
+        console.log("💰 Invoice payment succeeded:", event.data.object.id);
+        break;
+      case "customer.subscription.deleted":
+        console.log("❌ Subscription canceled:", event.data.object.id);
+        break;
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    res.status(200).json({ received: true });
+  }
+);
+
+app.listen(PORT, () => {
+  console.log(`Server is listening to the port ${PORT}`);
+});
+

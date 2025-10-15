@@ -11,13 +11,13 @@ export default function SuccessPage() {
     if (!sessionId) return;
     const res = await fetch(`http://localhost:8000/session/${sessionId}`);
     const data = await res.json();
-    setSession(data)
-    console.log("data ==>", data)
+    setSession(data);
+    console.log("data ==>", data);
   }, [sessionId]);
 
   if (!session) return <p>Loading...</p>;
 
-  console.log("session -->", session)
+  console.log("session -->", session);
 
   return (
     <main style={{ padding: 50 }}>
